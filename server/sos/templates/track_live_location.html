@@ -1,0 +1,74 @@
+<!-- backend/sos/templates/sos/track_live_location.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>Live Location Tracking</title>
+    <style>
+        /* Set the size of the div element that contains the map */
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+    <!-- Include Leaflet CSS for interactive maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+    <h2>Live Location Tracking for {{ sos_request.user.get_full_name|default:sos_request.user.username }}</h2>
+    <div id="map"></div>
+
+    <!-- Include Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Include Axios for AJAX requests -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([0, 0], 13);  // Default center
+
+        // Set up the OSM layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        var marker;
+
+        // Function to fetch the latest location data
+        function fetchLocation() {
+            axios.get("{% url 'fetch-live-location-data' sos_request.token %}")
+                .then(function (response) {
+                    if (response.data.error) {
+                        console.error(response.data.error);
+                        return;
+                    }
+                    var lat = response.data.latitude;
+                    var lng = response.data.longitude;
+                    var timestamp = response.data.timestamp;
+
+                    if (marker) {
+                        marker.setLatLng([lat, lng]);
+                    } else {
+                        marker = L.marker([lat, lng]).addTo(map);
+                    }
+
+                    map.setView([lat, lng], 15);
+
+                    // Optionally, display the timestamp
+                    document.title = "Last Update: " + timestamp;
+                })
+                .catch(function (error) {
+                    console.error('Error fetching location data:', error);
+                });
+        }
+
+        // Initial fetch
+        fetchLocation();
+
+        // Fetch location every minute (60000 milliseconds)
+        setInterval(fetchLocation, 60000);
+    </script>
+</body>
+</html>
